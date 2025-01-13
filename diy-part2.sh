@@ -16,4 +16,5 @@
 cd package
 git clone https://github.com/jerrykuku/luci-theme-argon.git
 git clone https://github.com/gSpotx2f/ruantiblock_openwrt.git
+git clone https://github.com/remittor/zapret-openwrt.git
 cd -
