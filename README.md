@@ -3,8 +3,16 @@
 
 [![LICENSE](https://img.shields.io/github/license/mashape/apistatus.svg?style=flat-square&label=LICENSE)](https://github.com/P3TERX/Actions-OpenWrt/blob/master/LICENSE)
 
+# Установка прошивки с помощью Xiaomi MiR Patcher
+Данный метод успешно работает на стоковой прошивке и аппаратной ревизии RB01
+1. Распаковываем [XMiR Pather](https://github.com/openwrt-xiaomi/xmir-patcher/archive/refs/heads/main.zip) и помещаем прошивку [openwrt-mediatek-mt7622-xiaomi_redmi-router-ax6s-factory.bin](https://github.com/IncubusRK/openwrt-ax6s/releases/latest/download/openwrt-mediatek-mt7622-xiaomi_redmi-router-ax6s-factory.bin) в директорию firmware
+3. Запускаем !START.bat
+4. При необходимости в главном меню указываем другой IP адрес роутера - пункт "1 - Set IP-address"
+5. Выбираем "2 - Connect to device (install exploit)", вводим пароль от Web интерфейса и дожидаемся установки
+6. При необходимости можно включить постоянный доступ по SSH на стоковой прошивке пункт - "6 - Install permanent SSH"
+7. Для установки прошивки выбираем "7 - Install firmware (from directory "firmware")" и дожидаемся окончания процесса. После этого роутер должен самостоятельно перезагрузиться
 
-# Инструкция по установке для Windows (гайд от [stroti](https://4pda.to/forum/index.php?showuser=4540991))
+# Инструкция (только для ревизии RB03) по установке под Windows (гайд от [stroti](https://4pda.to/forum/index.php?showuser=4540991))
 1. Скачиваем и устанавливаем через стандартное обновление роутера dev версию официальной прошивки [miwifi_rb03_firmware_stable_1.2.7.bin](https://raw.githubusercontent.com/YangWang92/AX6S-unlock/master/miwifi_rb03_firmware_stable_1.2.7.bin) (MD5: 5eedf1632ac97bb5a6bb072c08603ed7).
 
 2. Скачиваем и устанавливаем [Python](https://www.python.org/ftp/python/3.10.10/python-3.10.10-amd64.exe)
@@ -40,7 +48,7 @@
     
     5.3. В правой части программы поднимаемся в корневой каталог нажав на пиктограмму папки с стрелкой, после чего находим папку /tmp и переходим в нее
     
-    5.4. Скачиваем прошивку [OpenWRT](https://github.com/kyoto44/openwrt-ax6s/releases), а именно файл openwrt-mediatek-mt7622-xiaomi_redmi-router-ax6s-squashfs-factory.bin и сохраняем ее как factory.bin
+    5.4. Скачиваем прошивку [OpenWRT](https://github.com/IncubusRK/openwrt-ax6s/releases), а именно файл openwrt-mediatek-mt7622-xiaomi_redmi-router-ax6s-squashfs-factory.bin и сохраняем ее как factory.bin
 
     5.5. Перетаскиваем наш factory.bin в открытую на WinSCP папку /tmp и дожидаемся загрузки
 
