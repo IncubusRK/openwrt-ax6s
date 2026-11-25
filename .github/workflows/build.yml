@@ -162,7 +162,13 @@ jobs:
         run: |
           cd /workdir/openwrt
           T="bin/targets/$TGT"
-          bash "$GITHUB_WORKSPACE/scripts/verify-build.sh" "$T/openwrt-mediatek-mt7622.manifest"
+          ls -la "$T"
+          # Device-specific config -> PROFILE_SANITIZED is set, so the manifest
+          # carries the device suffix. Resolve it instead of guessing.
+          MAN=$(ls -1 "$T"/*.manifest 2>/dev/null | head -n 1 || true)
+          [ -n "$MAN" ] || { echo "ERROR: no manifest in $T" >&2; exit 1; }
+          echo "manifest: $MAN"
+          bash "$GITHUB_WORKSPACE/scripts/verify-build.sh" "$MAN"
           ITB="$T/${IMG}-squashfs-sysupgrade.itb"
           FACTORY="$T/${IMG}-factory.bin"
           test -f "$ITB"
@@ -181,13 +187,16 @@ jobs:
           T="bin/targets/$TGT"
           OUT=/workdir/out
           mkdir -p "$OUT/meta"
+          MAN=$(ls -1 "$T"/*.manifest 2>/dev/null | head -n 1 || true)
+          [ -n "$MAN" ] || { echo "ERROR: no manifest in $T" >&2; exit 1; }
           cp "$T/${IMG}-squashfs-sysupgrade.itb" \
              "$T/${IMG}-factory.bin" \
-             "$T/${IMG}-ubi-loader.itb" \
-             "$T/openwrt-mediatek-mt7622.manifest" "$OUT/"
+             "$T/${IMG}-ubi-loader.itb" "$OUT/"
+          # stable asset name regardless of the per-device manifest suffix
+          cp "$MAN" "$OUT/openwrt-mediatek-mt7622.manifest"
           cp /workdir/openwrt-head.txt repo-heads.txt "$OUT/meta/"
           bash "$GITHUB_WORKSPACE/scripts/extra-packages.sh" \
-            "$T/openwrt-mediatek-mt7622.manifest" bin/packages "$OUT/extra-packages.tar.gz"
+            "$MAN" bin/packages "$OUT/extra-packages.tar.gz"
           (cd "$OUT" && sha256sum ./*.itb ./*.bin ./*.tar.gz > meta/asset-sha256.txt)
           ls -la "$OUT"
 
