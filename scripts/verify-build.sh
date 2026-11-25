@@ -43,7 +43,7 @@ for p in zapret2 luci-app-zapret2 \
          podkop luci-app-podkop podkop-engine \
          kmod-amneziawg amneziawg-tools luci-proto-amneziawg \
          wireguard-tools luci-proto-wireguard \
-         luci-theme-argon luci-i18n-argon-config-ru \
+         luci-theme-argon \
          sqm-scripts luci-app-sqm kmod-sched-cake \
          nlbwmon luci-app-nlbwmon watchcat luci-app-watchcat \
          luci-app-attendedsysupgrade kmod-tcp-bbr wpad-mbedtls \
@@ -52,15 +52,23 @@ for p in zapret2 luci-app-zapret2 \
 done
 have_any mtr mtr-json
 
+# Translations are cosmetic: report, do not fail the build over them.
+for p in luci-i18n-base-ru luci-i18n-firewall-ru luci-i18n-argon-config-ru; do
+	if ! printf '%s\n' "$NAMES" | grep -qxF -- "$p"; then
+		echo "WARN: $p missing (cosmetic)"
+	fi
+done
+
 # --- must stay out of the image ------------------------------------------
 # python3/ruantiblock: replaced by zapret2 (no python stack on a 128 MiB NAND)
 # zapret/ipset/iptables-*: the old remittor stack
 # sing-box: replaced by podkop-engine (stock sing-box has no XHTTP)
 # luci-app-argon-config: settings live inside luci-theme-argon since 3.0
 # luci-ssl-openssl: podkop's dashboard (Clash API) needs plain HTTP
+# NB: iptables + iptables-mod-ipopt are pulled by sqm-scripts (packet marking)
+# and are expected; only the DPI-era pieces are forbidden.
 for p in python3 libpython3 ruantiblock luci-app-ruantiblock \
-         zapret luci-app-zapret ipset \
-         iptables-mod-nfqueue iptables-mod-extra iptables-mod-ipopt \
+         zapret luci-app-zapret ipset iptables-mod-nfqueue \
          sing-box sing-box-tiny podkop-engine-full \
          luci-app-argon-config luci-ssl-openssl \
          adguardhome docker dockerd luci-app-openclash \

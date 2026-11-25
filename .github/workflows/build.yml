@@ -78,8 +78,8 @@ jobs:
           sudo mkdir -p /workdir
           sudo chown "$USER" /workdir
 
-      - name: Cache dl + ccache
-        uses: actions/cache@v4
+      - name: Restore dl + ccache
+        uses: actions/cache/restore@v4
         with:
           path: |
             /workdir/openwrt/dl
@@ -157,6 +157,18 @@ jobs:
           echo "$(nproc) threads"
           make -j"$(nproc)" || make -j1 V=s
           ccache -s || true
+
+      # Save the cache even when a later step fails: otherwise every failed
+      # verification costs a full rebuild on the next attempt.
+      - name: Save dl + ccache
+        if: always()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            /workdir/openwrt/dl
+            /home/runner/.ccache
+          key: openwrt-25.12-${{ github.run_id }}
 
       - name: Verify build
         run: |
