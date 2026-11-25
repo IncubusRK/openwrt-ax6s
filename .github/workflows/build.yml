@@ -209,7 +209,16 @@ jobs:
           cp /workdir/openwrt-head.txt repo-heads.txt "$OUT/meta/"
           bash "$GITHUB_WORKSPACE/scripts/extra-packages.sh" \
             "$MAN" bin/packages "$OUT/extra-packages.tar.gz"
-          (cd "$OUT" && sha256sum ./*.itb ./*.bin ./*.tar.gz > meta/asset-sha256.txt)
+          # An archive of nothing is noise: keep the asset only when the seed
+          # actually selects optional (=m) packages.
+          if [ "$(stat -c%s "$OUT/extra-packages.tar.gz")" -lt 1024 ]; then
+            echo "no optional (=m) packages were built — dropping the empty archive"
+            rm -f "$OUT/extra-packages.tar.gz"
+          fi
+          (cd "$OUT" && sha256sum ./*.itb ./*.bin > meta/asset-sha256.txt)
+          if [ -f "$OUT/extra-packages.tar.gz" ]; then
+            (cd "$OUT" && sha256sum ./*.tar.gz >> meta/asset-sha256.txt)
+          fi
           ls -la "$OUT"
 
       - name: Upload artifacts
@@ -251,7 +260,9 @@ jobs:
             echo "## Assets"
             echo "- sysupgrade: $(stat -c%s "$ITB") bytes, sha256 \`$(sha256sum "$ITB" | cut -d' ' -f1)\`"
             echo "- factory: $(stat -c%s "$FACTORY") bytes, sha256 \`$(sha256sum "$FACTORY" | cut -d' ' -f1)\`"
-            echo "- extra-packages.tar.gz: $(stat -c%s out/extra-packages.tar.gz) bytes (built but NOT in the image)"
+            if [ -f out/extra-packages.tar.gz ]; then
+              echo "- extra-packages.tar.gz: $(stat -c%s out/extra-packages.tar.gz) bytes (built but NOT in the image)"
+            fi
             echo
             echo "## Custom repo HEADs"
             echo '```'
@@ -259,17 +270,19 @@ jobs:
             echo '```'
             echo
             echo "First boot: all transparent proxies are disabled — enable exactly ONE intercept (zapret2 or podkop) in LuCI."
-            echo "Optional packages: \`tar -xzf extra-packages.tar.gz -C /tmp/extra && apk add --allow-untrusted /tmp/extra/*.apk\` (same release as the image!)."
+            if [ -f out/extra-packages.tar.gz ]; then
+              echo "Optional packages: \`tar -xzf extra-packages.tar.gz -C /tmp/extra && apk add --allow-untrusted /tmp/extra/*.apk\` (same release as the image!)."
+            fi
           } > body.md
+          ASSETS="$ITB $FACTORY out/openwrt-mediatek-mt7622-xiaomi_redmi-router-ax6s-ubi-loader.itb out/openwrt-mediatek-mt7622.manifest out/meta/asset-sha256.txt"
+          if [ -f out/extra-packages.tar.gz ]; then
+            ASSETS="$ASSETS out/extra-packages.tar.gz"
+          fi
+          # shellcheck disable=SC2086
           gh release create "$TAG" \
             --repo "${{ github.repository }}" \
             --title "OpenWrt 25.12 (AX6S) $(date +%Y-%m-%d)" \
-            --notes-file body.md \
-            "$ITB" "$FACTORY" \
-            out/openwrt-mediatek-mt7622-xiaomi_redmi-router-ax6s-ubi-loader.itb \
-            out/openwrt-mediatek-mt7622.manifest \
-            out/meta/asset-sha256.txt \
-            out/extra-packages.tar.gz
+            --notes-file body.md $ASSETS
 
       - name: Retention (keep 3)
         env:
