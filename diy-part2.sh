@@ -80,6 +80,26 @@ printf 'podkop-engine %s-r%s (patches v%s, fork %s)\n' \
 rm -rf podkop-engine-src
 CLONED="zapret2-openwrt awg-openwrt podkop luci-theme-argon podkop-engine"
 
+# --- podkop: do not select stock sing-box --------------------------------
+# podkop DEPENDS on "+sing-box", while podkop-engine PROVIDES sing-box and
+# CONFLICTS with it. An image build cannot express "provides" (unlike apk at
+# install time): Kconfig reports a recursive dependency
+#   PACKAGE_podkop-engine -> PACKAGE_sing-box (selected by podkop)
+# and defconfig silently drops podkop-engine. Drop the select and the conflict:
+# the image ships podkop-engine, which installs /usr/bin/sing-box anyway, and
+# the guard in verify-build.sh keeps stock sing-box out.
+sed -i -E 's/(DEPENDS:=)\+sing-box[[:space:]]*/\1/' podkop/podkop/Makefile
+grep -q -- '+sing-box' podkop/podkop/Makefile && {
+	echo "ERROR: podkop still selects sing-box (upstream DEPENDS changed?)" >&2
+	exit 1
+}
+
+sed -i -E '/^[[:space:]]*CONFLICTS:=sing-box sing-box-tiny[[:space:]]*$/d' podkop-engine/Makefile
+grep -qE '^[[:space:]]*CONFLICTS:=sing-box sing-box-tiny[[:space:]]*$' podkop-engine/Makefile && {
+	echo "ERROR: podkop-engine still conflicts with sing-box (upstream changed?)" >&2
+	exit 1
+}
+
 cd ..
 
 # --- mode safety net ------------------------------------------------------
