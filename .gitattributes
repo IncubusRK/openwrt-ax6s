@@ -8,6 +8,8 @@
 *.config text eol=lf
 files/etc/uci-defaults/* text eol=lf
 files/etc/sysctl.d/* text eol=lf
+files/usr/bin/* text eol=lf
+files/usr/share/rpcd/ucode/* text eol=lf
 
 # Firmware artifacts must never end up in the tree
 *.itb binary

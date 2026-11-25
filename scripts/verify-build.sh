@@ -38,6 +38,19 @@ absent() {
 	if printf '%s\n' "$NAMES" | grep -qxF -- "$1"; then echo "UNWANTED: $1"; fail=1; fi
 }
 
+# --- repo-side helpers (files/ overlay) -----------------------------------
+# These ship through files/, so they never appear in the manifest; without
+# this check a missing or non-executable helper would only surface as a dead
+# button in LuCI on the device.
+REPO_DIR=$(cd "$(dirname "$0")/.." && pwd)
+[ -f "$REPO_DIR/files/usr/bin/awgimport" ] ||
+	{ echo "MISSING FILE: files/usr/bin/awgimport"; fail=1; }
+[ -x "$REPO_DIR/files/usr/bin/awgimport" ] ||
+	{ echo "NOT EXECUTABLE: files/usr/bin/awgimport"; fail=1; }
+for f in files/usr/share/rpcd/ucode/awglink files/usr/share/rpcd/acl.d/awglink.json; do
+	[ -f "$REPO_DIR/$f" ] || { echo "MISSING FILE: $f"; fail=1; }
+done
+
 # --- must be in the image -------------------------------------------------
 for p in zapret2 luci-app-zapret2 \
          podkop luci-app-podkop podkop-engine \
@@ -47,7 +60,7 @@ for p in zapret2 luci-app-zapret2 \
          sqm-scripts luci-app-sqm kmod-sched-cake \
          nlbwmon luci-app-nlbwmon watchcat luci-app-watchcat \
          luci-app-attendedsysupgrade kmod-tcp-bbr wpad-mbedtls \
-         dnsmasq-full curl iperf3 tcpdump; do
+         dnsmasq-full curl pigz iperf3 tcpdump; do
 	have "$p"
 done
 have_any mtr mtr-json

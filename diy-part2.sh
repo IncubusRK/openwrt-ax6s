@@ -6,6 +6,8 @@
 # 1. Clone the third-party package repos at HEAD ("upstream-update" in
 #    update-checker.yml watches the same HEADs; they are recorded in
 #    ../repo-heads.txt and shipped in the release notes).
+#    Local patches (patches/awg-openwrt/*.patch) are applied to the awg-openwrt
+#    clone in name order; the directory is optional.
 # 2. Materialize package/podkop-engine from podkop-net/podkop-engine: the repo
 #    ships only the package skeleton (openwrt/podkop-engine) plus the patch set
 #    per sing-box line, so version.mk is generated here exactly like their
@@ -14,15 +16,19 @@
 #    NOTE: podkop-engine replaces stock sing-box — stock sing-box has no XHTTP
 #    transport, which the providers need.
 # 3. Mode safety net: strip group/other write (rpcd skips world-writable ucode
-#    plugins), keep uci-defaults and libexec workers executable. Git clones
-#    normally carry proper bits — this guards against regressions (e.g. a repo
-#    committed from Windows).
+#    plugins), keep uci-defaults, libexec workers and our files/ helpers
+#    executable. Git clones normally carry proper bits — this guards against
+#    regressions (e.g. a repo committed from Windows).
 # 4. Enforce the include/scan.mk marker: a Makefile without the literal
 #    "call BuildPackage" (or "call KernelPackage" for kmod packages) is
 #    SILENTLY skipped by the package scanner, the build still succeeds and the
 #    image silently lacks the package.
 
 set -eu
+
+# Recipe checkout root (this script lives at the top of it); patches/ and
+# files/ are read from here, not from the OpenWrt tree.
+REPO_DIR=$(cd "$(dirname "$0")" && pwd)
 
 # sing-box line of podkop-engine (patches/v<line> in their repo).
 PODKOP_ENGINE_LINE="${PODKOP_ENGINE_LINE:-1.14}"
@@ -35,6 +41,26 @@ clone() {
 
 clone zapret2-openwrt   https://github.com/1andrevich/zapret2-openwrt
 clone awg-openwrt       https://github.com/slava-shchipunov/awg-openwrt
+
+# Local patches for awg-openwrt (kept in this repo). Name order matters and an
+# unappliable patch is fatal: silently shipping the stock LuCI proto would drop
+# the vpn:// import button while the build still succeeds.
+AWG_DIR=$PWD/awg-openwrt
+if [ -d "$REPO_DIR/patches/awg-openwrt" ]; then
+	plist="${TMPDIR:-/tmp}/awg-openwrt-patches.txt"
+	LC_ALL=C ls -1 "$REPO_DIR"/patches/awg-openwrt/*.patch 2>/dev/null |
+		LC_ALL=C sort > "$plist" || true
+	while IFS= read -r p; do
+		[ -n "$p" ] && [ -f "$p" ] || continue
+		git -C "$AWG_DIR" apply --check "$p" || {
+			echo "ERROR: patch does not apply: $p" >&2
+			exit 1
+		}
+		git -C "$AWG_DIR" apply "$p"
+	done < "$plist"
+	rm -f "$plist"
+fi
+
 clone podkop            https://github.com/itdoginfo/podkop
 clone luci-theme-argon  https://github.com/jerrykuku/luci-theme-argon
 clone podkop-engine-src https://github.com/podkop-net/podkop-engine
@@ -108,6 +134,9 @@ for d in $CLONED; do
 done
 find package -path '*/etc/uci-defaults/*' -type f -exec chmod 0755 {} +
 find package -path '*/usr/libexec/*' -type f -exec chmod 0755 {} +
+# files/ is copied into the tree before this script runs: our helpers must stay
+# executable even when the checkout (Windows) lost the bits.
+find files/usr/bin files/usr/share/rpcd/ucode -type f -exec chmod 0755 {} +
 
 # --- scan.mk marker check -------------------------------------------------
 # Regular packages end with "call BuildPackage"; kernel modules use
