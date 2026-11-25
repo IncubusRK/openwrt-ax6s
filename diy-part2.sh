@@ -18,8 +18,9 @@
 #    normally carry proper bits — this guards against regressions (e.g. a repo
 #    committed from Windows).
 # 4. Enforce the include/scan.mk marker: a Makefile without the literal
-#    "call BuildPackage" is SILENTLY skipped by the package scanner, the build
-#    still succeeds and the image silently lacks the package.
+#    "call BuildPackage" (or "call KernelPackage" for kmod packages) is
+#    SILENTLY skipped by the package scanner, the build still succeeds and the
+#    image silently lacks the package.
 
 set -eu
 
@@ -89,6 +90,8 @@ find package -path '*/etc/uci-defaults/*' -type f -exec chmod 0755 {} +
 find package -path '*/usr/libexec/*' -type f -exec chmod 0755 {} +
 
 # --- scan.mk marker check -------------------------------------------------
+# Regular packages end with "call BuildPackage"; kernel modules use
+# "call KernelPackage" and would otherwise be reported as missing.
 for m in package/zapret2-openwrt/zapret2/Makefile \
          package/zapret2-openwrt/luci-app-zapret2/Makefile \
          package/awg-openwrt/kmod-amneziawg/Makefile \
@@ -98,7 +101,7 @@ for m in package/zapret2-openwrt/zapret2/Makefile \
          package/podkop/luci-app-podkop/Makefile \
          package/luci-theme-argon/Makefile \
          package/podkop-engine/Makefile; do
-	grep -q 'call BuildPackage' "$m" || { echo "ERROR: scan.mk marker missing in $m" >&2; exit 1; }
+	grep -Eq 'call (BuildPackage|KernelPackage)' "$m" || { echo "ERROR: scan.mk marker missing in $m" >&2; exit 1; }
 done
 
 echo "diy-part2 OK"
