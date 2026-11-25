@@ -1,0 +1,12 @@
+#!/bin/sh
+# Safe first-boot defaults: transparent proxies stay disabled until configured
+# via LuCI. Zapret2 and podkop install nftables redirect/tproxy rules; with no
+# uplink configured they only break name resolution and traffic.
+# Also: watchcat is off until an uplink is actually monitored (with no config a
+# half-configured watchcat reboots the router in a loop).
+#
+# This file runs after 99-podkop-engine and 99-argon-theme thanks to the "zz".
+/etc/init.d/podkop disable
+/etc/init.d/zapret2 disable
+/etc/init.d/watchcat disable
+exit 0

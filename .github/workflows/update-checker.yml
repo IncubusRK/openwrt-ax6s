@@ -1,0 +1,91 @@
+# Update Checker — daily upstream/custom-repo HEAD check.
+#
+# Collects the openwrt-25.12 HEAD plus the HEADs of every repo cloned in
+# diy-part2.sh, hashes the composite and compares it with the cached value.
+# On change -> repository_dispatch "upstream-update" which triggers build.yml.
+#
+# repository_dispatch created with GITHUB_TOKEN DOES trigger workflows
+# (exception to the GITHUB_TOKEN recursion rule) — no PAT required.
+# Cron 00:00 UTC = 03:00 Yekaterinburg.
+#
+# workflow_dispatch with dry_run=true computes the composite hash, writes the
+# hash file and saves the cache entry, but does NOT send repository_dispatch.
+# Use it once to bootstrap an empty checker cache without triggering a build.
+#
+# NOTE: keep this repo list in sync with diy-part2.sh.
+
+name: Update Checker
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Compute and cache the hash, but do NOT dispatch a build'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Collect HEADs
+        id: heads
+        run: |
+          set -eu
+          UP=$(git ls-remote https://github.com/openwrt/openwrt refs/heads/openwrt-25.12 | cut -f1)
+          [ -n "$UP" ] || { echo "upstream branch not found" >&2; exit 1; }
+          COMPOSITE="$UP"
+          for r in \
+            1andrevich/zapret2-openwrt \
+            slava-shchipunov/awg-openwrt \
+            itdoginfo/podkop \
+            jerrykuku/luci-theme-argon \
+            podkop-net/podkop-engine
+          do
+            H=$(git ls-remote "https://github.com/$r" HEAD | cut -f1)
+            [ -n "$H" ] || { echo "repo $r not reachable" >&2; exit 1; }
+            COMPOSITE="$COMPOSITE-$H"
+          done
+          HASH=$(printf '%s' "$COMPOSITE" | sha256sum | cut -d' ' -f1)
+          # lookup-only restore leaves the path empty — safe to write it here.
+          # The hash file must exist even on a dry run so cache/save succeeds.
+          printf '%s' "$HASH" > .checker-hash
+          echo "upstream=$UP" >> "$GITHUB_OUTPUT"
+          echo "hash=$HASH" >> "$GITHUB_OUTPUT"
+          echo "upstream=$UP composite=$HASH"
+
+      - name: Lookup previous hash
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .checker-hash
+          key: checker-${{ steps.heads.outputs.hash }}
+          lookup-only: true
+
+      - name: Trigger build on change
+        if: steps.cache.outputs.cache-hit != 'true' && inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # REST API field is event_type (underscore); "event-type" gives HTTP 422.
+          gh api "repos/${{ github.repository }}/dispatches" \
+            -f event_type=upstream-update
+
+      - name: Dry run — skip dispatch
+        if: steps.cache.outputs.cache-hit != 'true' && inputs.dry_run == true
+        run: echo "dry_run=true — hash saved to cache, no repository_dispatch sent"
+
+      - name: Save new hash
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .checker-hash
+          key: checker-${{ steps.heads.outputs.hash }}

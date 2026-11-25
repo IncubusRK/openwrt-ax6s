@@ -1,0 +1,11 @@
+#!/bin/sh
+# Default to the Argon theme on first boot after flashing.
+# Since Argon 3.0 the theme also carries its own settings UI, so no separate
+# luci-app-argon-config is involved.
+# Switch back via System -> Language and Style, or:
+#   uci set luci.main.mediaurlbase='/luci-static/bootstrap'; uci commit luci
+uci -q batch <<-EOF >/dev/null
+	set luci.main.mediaurlbase='/luci-static/argon'
+	commit luci
+EOF
+exit 0
